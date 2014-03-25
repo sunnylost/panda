@@ -98,16 +98,17 @@
 					d.every(function(depId, i) {
 						if(depId == id) {
 							d[i] = exports;
+
 						} else if(typeof depId == 'string') {
 							return m.isresolved = false;
 						}
 						return m.isresolved = true;
 					})
+					dms.splice(i, 1);
+					if(!dms.length) {
+						delete dependencyMaps[id];
+					}
 					if(m.isresolved) {
-						dms.splice(i, 1);
-						if(!dms.length) {
-							delete dependencyMaps[id];
-						}
 						m.run();
 						/**
 						 * m 的依赖已经解决，然后解决依赖于 m 的模块
