@@ -3,7 +3,18 @@
  */
 (function() {
 	var
+		/**
+		 * 保存全部模块引用
+		 * @type {Object}
+		 */
 		moduleMaps = {},
+
+		/**
+		 * 保存需要依赖的模块
+		 * 		key：依赖的模块名
+		 * 		value：依赖 key 模块的所有模块
+		 * @type {Object}
+		 */
 		dependencyMaps = {},
 
 		ArrayProto = Array.prototype,
@@ -33,11 +44,7 @@
 	function loadJs(path, callback) {
 		var script = document.createElement('script');
 		script.onload = function() {
-			console.log(path + ' is loaded!');
 			script.onload = null;
-			setTimeout(function() {
-				callback();
-			})
 		};
 		script.src = path;
 		document.head.appendChild(script);
@@ -72,6 +79,7 @@
 
 	/**
 	 * TODO
+	 * 解决依赖
 	 */
 	function resolveDependencies(module) {
 		var d,
@@ -81,7 +89,7 @@
 		if(module.isresolved) {
 			module = dependencyMaps[id];
 			if(module) {
-				module.forEach(function(m) {
+				module.forEach(function(m, i) {
 					d = m.dependencies;
 					d.every(function(depId, i) {
 						if(depId == id) {
@@ -91,7 +99,13 @@
 							return m.isresolved = false;
 						}
 					})
-					m.isresolved && m.run();
+					if(m.isresolved) {
+						module.splice(i, 1);
+						if(!module.length) {
+							delete dependencyMaps[id];
+						}
+						m.run();
+					}
 				})
 			}
 		}
@@ -179,16 +193,16 @@ console.log(factory);*/
 				var depModule = dependencyMaps[path] || (dependencyMaps[path] = []);
 				depModule.push(module);
 				module.dependencies.push(path)
-				loadJs(path, function() {
-					resolveDependencies(moduleMaps[path]);
-				});
+				loadJs(path);
 			})
 		} else {
 			result = factory.call(null, require, module.exports, module);
 			if(typeof result == 'object') {
 				module.exports = result;
 			}
-
+			/**
+			 * 模块已经没有依赖，解决其他依赖该模块的模块
+			 */
 			resolveDependencies(module);
 		}
 	}
