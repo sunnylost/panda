@@ -196,10 +196,16 @@ console.log(factory);*/
 
 		if(dependencies) {
 			dependencies.forEach(function(path) {
+				var m;
 				path = resolvePath(path, baseURL) + '.js';
+				m = moduleMaps[path];
 
 				(dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
-				module.dependencies.push(path)
+				module.dependencies.push(path);
+				if(m && m.isresolved) {
+					resolveDependencies(m);
+					return;
+				}
 				loadJs(path);
 			})
 		} else {
