@@ -162,7 +162,7 @@
 					var m;
 					path = resolvePath(path, baseURL) + '.js';
 					dependencies[i] = path;
-					m = moduleMaps[path];
+					m = moduleMaps[path];  //将 id 替换为绝对路径
 
 					(dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
 					if(m && m.isresolved) {
@@ -223,13 +223,13 @@
 		src = node.src;
 		baseURL = src.substring(0, src.lastIndexOf('/') + 1);
 
-		moduleMaps[src] = new Module({
+		(moduleMaps[src] = new Module({
 			id:  src, //@TODO, needs id
 			baseURL: baseURL,
 			uri: src,
 			dependencies: dependencies,
 			factory: factory
-		}).load();
+		})).load();
 	}
 
 	/**
