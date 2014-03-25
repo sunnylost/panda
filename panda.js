@@ -123,14 +123,56 @@
 	function Module(option) {
 		this.id = option.id;
 		this.uri = option.uri;
-		this.isresolved = option.isresolved;
+		this.baseURL = option.baseURL;
 		this.factory = option.factory;
 		this.exports = {};
-		this.dependencies = [];
+		var dep = this.dependencies = option.dependencies;
+		this.isresolved = !dep || !dep.length;
 	}
 
 	Module.prototype = {
 		constructor: Module,
+
+		/**
+		 * 加载模块
+		 * @return {[type]} [description]
+		 */
+		load: function() {
+			var module 		 = this,
+				factory 	 = module.factory,
+				dependencies = module.dependencies,
+				baseURL 	 = module.baseURL,
+				isresolved   = module.isresolved,
+				result;
+
+			/**
+			 * 模块没有依赖
+			 */
+			if(isresolved) {
+				result = factory.call(null, require, module.exports, module);
+				if(typeof result == 'object') {
+					module.exports = result;
+				}
+				/**
+				 * 模块已经没有依赖，解决其他依赖该模块的模块
+				 */
+				resolveDependencies(module);
+			} else {
+				dependencies.forEach(function(path, i) {
+					var m;
+					path = resolvePath(path, baseURL) + '.js';
+					dependencies[i] = path;
+					m = moduleMaps[path];
+
+					(dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
+					if(m && m.isresolved) {
+						resolveDependencies(m);
+						return;
+					}
+					loadJs(path);
+				})
+			}
+		},
 
 		run: function() {
 			var result = this.factory.apply(this, this.dependencies);
@@ -141,7 +183,6 @@
 	};
 
 	function require() {
-
 	}
 
 	/**
@@ -155,9 +196,7 @@
 		var argLen = arguments.length,
 			node,
 			src,
-			baseURL,
-			module,
-			result;
+			baseURL;
 
 		/**
 		 * 处理参数
@@ -176,9 +215,6 @@
 				dependencies = null;
 			}
 		}
-/*console.log(id);
-console.log(dependencies);
-console.log(factory);*/
 
 		node = getCurrentScript();
 		if(!node) {
@@ -187,37 +223,13 @@ console.log(factory);*/
 		src = node.src;
 		baseURL = src.substring(0, src.lastIndexOf('/') + 1);
 
-		module = moduleMaps[src] = new Module({
+		moduleMaps[src] = new Module({
 			id:  src, //@TODO, needs id
+			baseURL: baseURL,
 			uri: src,
-			isresolved: !dependencies,
+			dependencies: dependencies,
 			factory: factory
-		});
-
-		if(dependencies) {
-			dependencies.forEach(function(path) {
-				var m;
-				path = resolvePath(path, baseURL) + '.js';
-				m = moduleMaps[path];
-
-				(dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
-				module.dependencies.push(path);
-				if(m && m.isresolved) {
-					resolveDependencies(m);
-					return;
-				}
-				loadJs(path);
-			})
-		} else {
-			result = factory.call(null, require, module.exports, module);
-			if(typeof result == 'object') {
-				module.exports = result;
-			}
-			/**
-			 * 模块已经没有依赖，解决其他依赖该模块的模块
-			 */
-			resolveDependencies(module);
-		}
+		}).load();
 	}
 
 	/**
