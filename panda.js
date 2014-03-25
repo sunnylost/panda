@@ -20,6 +20,7 @@
 		ArrayProto = Array.prototype,
 		slice = ArrayProto.slice,
 
+		rdotSlash = /\.\//g,
 		risRelativePath = /^\./;
 
 	function toArray(obj) {
@@ -27,10 +28,12 @@
 	}
 
 	/**
-	 * 将相对路径解析为绝对路径
+	 * @TODO 将相对路径解析为绝对路径
 	 * @return {[type]} [description]
 	 */
 	function resolvePath(path, baseURL) {
+		path = path.replace(rdotSlash, '');
+
 		if(risRelativePath.test(path)) {
 		}
 		return baseURL + path;
@@ -78,18 +81,19 @@
 	}
 
 	/**
-	 * TODO
+	 * @TODO
 	 * 解决依赖
 	 */
 	function resolveDependencies(module) {
 		var d,
 			id = module.id,
+			dms,
 			exports = module.exports;
 
 		if(module.isresolved) {
-			module = dependencyMaps[id];
-			if(module) {
-				module.forEach(function(m, i) {
+			dms = dependencyMaps[id];
+			if(dms) {
+				dms.forEach(function(m, i) {
 					d = m.dependencies;
 					d.every(function(depId, i) {
 						if(depId == id) {
@@ -100,11 +104,15 @@
 						}
 					})
 					if(m.isresolved) {
-						module.splice(i, 1);
-						if(!module.length) {
+						dms.splice(i, 1);
+						if(!dms.length) {
 							delete dependencyMaps[id];
 						}
 						m.run();
+						/**
+						 * m 的依赖已经解决，然后解决依赖于 m 的模块
+						 */
+						resolveDependencies(m);
 					}
 				})
 			}
@@ -124,7 +132,10 @@
 		constructor: Module,
 
 		run: function() {
-			this.factory.apply(this, this.dependencies);
+			var result = this.factory.apply(this, this.dependencies);
+			if(typeof result == 'object') {
+				this.exports = result;
+			}
 		}
 	};
 
@@ -180,7 +191,7 @@ console.log(factory);*/
 		baseURL = src.substring(0, src.lastIndexOf('/') + 1);
 
 		module = moduleMaps[src] = new Module({
-			id:  src, //TODO, needs id
+			id:  src, //@TODO, needs id
 			uri: src,
 			isresolved: !dependencies,
 			factory: factory

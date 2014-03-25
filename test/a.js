@@ -1,5 +1,5 @@
-define('a', function() {
+define('a', ['./level1/b'], function(b) {
 	return {
-		name: 'My name is A.'
+		intro: 'My name is A. And let me introduce another friend! His is ' + b.name
 	}
 })
