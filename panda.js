@@ -4,6 +4,7 @@
 (function() {
 	var
 		moduleMaps = {},
+		dependencyMaps = {},
 
 		ArrayProto = Array.prototype,
 		slice = ArrayProto.slice,
@@ -21,7 +22,7 @@
 	function resolvePath(path, baseURL) {
 		if(risRelativePath.test(path)) {
 		}
-		return path;
+		return baseURL + path;
 	}
 
 	/**
@@ -32,9 +33,13 @@
 	function loadJs(path, callback) {
 		var script = document.createElement('script');
 		script.onload = function() {
-			console.log(path + '.js is loaded!');
+			console.log(path + ' is loaded!');
+			script.onload = null;
+			setTimeout(function() {
+				callback();
+			})
 		};
-		script.src = path + '.js';
+		script.src = path;
 		document.head.appendChild(script);
 	}
 
@@ -66,6 +71,58 @@
 	}
 
 	/**
+	 * TODO
+	 */
+	function resolveDependencies(module) {
+		var d,
+			id = module.id,
+			exports = module.exports;
+
+		if(module.isresolved) {
+			module = dependencyMaps[id];
+			if(module) {
+				module.forEach(function(m) {
+					d = m.dependencies;
+					d.every(function(depId, i) {
+						if(depId == id) {
+							d[i] = exports;
+							return m.isresolved = true;
+						} else if(typeof depId == 'string') {
+							return m.isresolved = false;
+						}
+					})
+					m.isresolved && m.run();
+				})
+			}
+		}
+	}
+
+	function Module(option) {
+		this.id = option.id;
+		this.uri = option.uri;
+		this.isresolved = option.isresolved;
+		this.factory = option.factory;
+		this.exports = {};
+		this.dependencies = [];
+	}
+
+	Module.prototype = {
+		constructor: Module,
+
+		run: function() {
+			this.factory.apply(this, this.dependencies);
+		}
+	};
+
+	function require() {
+
+	}
+
+	function exports() {
+
+	}
+
+	/**
 	 *
 	 * @param  {[String]}    id
 	 * @param  {[Array]}     dependencies
@@ -76,7 +133,10 @@
 		var argLen = arguments.length,
 			node,
 			src,
-			baseURL;
+			baseURL,
+			module,
+			result;
+
 		/**
 		 * 处理参数
 		 * id 和 dependencies 均可省略
@@ -84,7 +144,6 @@
 		if(argLen == 1) {
 			factory = id;
 			id = dependencies = null;
-
 		} else if(argLen == 2) {
 			if(typeof id != 'string') {
 				factory = dependencies;
@@ -95,6 +154,9 @@
 				dependencies = null;
 			}
 		}
+/*console.log(id);
+console.log(dependencies);
+console.log(factory);*/
 
 		node = getCurrentScript();
 		if(!node) {
@@ -102,10 +164,32 @@
 		}
 		src = node.src;
 		baseURL = src.substring(0, src.lastIndexOf('/') + 1);
+
+		module = moduleMaps[src] = new Module({
+			id:  src, //TODO, needs id
+			uri: src,
+			isresolved: !dependencies,
+			factory: factory
+		});
+
 		if(dependencies) {
 			dependencies.forEach(function(path) {
-				loadJs(resolvePath(path, baseURL));
+				path = resolvePath(path, baseURL) + '.js';
+
+				var depModule = dependencyMaps[path] || (dependencyMaps[path] = []);
+				depModule.push(module);
+				module.dependencies.push(path)
+				loadJs(path, function() {
+					resolveDependencies(moduleMaps[path]);
+				});
 			})
+		} else {
+			result = factory.call(null, require, module.exports, module);
+			if(typeof result == 'object') {
+				module.exports = result;
+			}
+
+			resolveDependencies(module);
 		}
 	}
 
