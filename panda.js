@@ -98,10 +98,10 @@
 					d.every(function(depId, i) {
 						if(depId == id) {
 							d[i] = exports;
-							return m.isresolved = true;
 						} else if(typeof depId == 'string') {
 							return m.isresolved = false;
 						}
+						return m.isresolved = true;
 					})
 					if(m.isresolved) {
 						dms.splice(i, 1);
@@ -140,10 +140,6 @@
 	};
 
 	function require() {
-
-	}
-
-	function exports() {
 
 	}
 
@@ -201,8 +197,7 @@ console.log(factory);*/
 			dependencies.forEach(function(path) {
 				path = resolvePath(path, baseURL) + '.js';
 
-				var depModule = dependencyMaps[path] || (dependencyMaps[path] = []);
-				depModule.push(module);
+				(dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
 				module.dependencies.push(path)
 				loadJs(path);
 			})
