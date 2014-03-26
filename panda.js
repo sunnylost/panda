@@ -3,6 +3,10 @@
  */
 (function() {
 	var
+		global = this,
+
+		doc = global.document,
+
 		/**
 		 * 保存全部模块引用
 		 * @type {Object}
@@ -17,11 +21,10 @@
 		 */
 		dependencyMaps = {},
 
-		ArrayProto = Array.prototype,
-		slice = ArrayProto.slice,
+		tmpAnchor = doc.createElement('a'),
 
-		rdotSlash = /\.\//g,
-		risRelativePath = /^\./;
+		ArrayProto = Array.prototype,
+		slice = ArrayProto.slice;
 
 	function toArray(obj) {
 		return slice.call(obj, 0);
@@ -32,11 +35,8 @@
 	 * @return {[type]} [description]
 	 */
 	function resolvePath(path, baseURL) {
-		path = path.replace(rdotSlash, '');
-
-		if(risRelativePath.test(path)) {
-		}
-		return baseURL + path;
+		tmpAnchor.href = baseURL + path;
+		return tmpAnchor.href;
 	}
 
 	/**
