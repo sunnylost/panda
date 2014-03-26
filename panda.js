@@ -109,7 +109,7 @@
 						delete dependencyMaps[id];
 					}
 					if(m.isresolved) {
-						m.run();
+						m.resolve();
 						/**
 						 * m 的依赖已经解决，然后解决依赖于 m 的模块
 						 */
@@ -174,8 +174,11 @@
 			}
 		},
 
-		run: function() {
-			var result = this.factory.apply(this, this.dependencies);
+		resolve: function() {
+			var result,
+				factory = this.factory;
+
+			result = factory.apply(this, this.dependencies.slice(0, factory.length));
 			if(typeof result == 'object') {
 				this.exports = result;
 			}
