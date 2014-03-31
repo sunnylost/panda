@@ -147,9 +147,17 @@
 
 			/**
 			 * 模块没有依赖
+			 *
+			 * factory 也可能是对象，例如
+			 *     define({
+			 *     	name: 'test'
+			 *     })
 			 */
 			if(isresolved) {
-				result = factory.call(null, require, module.exports, module);
+				result = (typeof factory == 'function') ?
+							factory.call(null, require, module.exports, module) :
+							factory;
+
 				if(typeof result == 'object') {
 					module.exports = result;
 				}
