@@ -127,7 +127,7 @@
 		this.factory = option.factory;
 		this.exports = {};
 		var dep = this.dependencies = option.dependencies;
-		this.isresolved = !dep || !dep.length;
+		(this.isresolved = !dep || !dep.length) && this.resolve();
 	}
 
 	Module.prototype = {
@@ -145,30 +145,18 @@
 				isresolved   = module.isresolved,
 				result;
 
-			/**
-			 * 模块没有依赖
-			 *
-			 * factory 也可能是对象，例如
-			 *     define({
-			 *     	name: 'test'
-			 *     })
-			 */
-			if(isresolved) {
-				result = (typeof factory == 'function') ?
-							factory.call(null, require, module.exports, module) :
-							factory;
-
-				if(typeof result == 'object') {
-					module.exports = result;
-				}
-				/**
-				 * 模块已经没有依赖，解决其他依赖该模块的模块
-				 */
-				resolveDependencies(module);
-			} else {
+			if(!isresolved) {
 				dependencies.forEach(function(path, i) {
+					if(path == 'require') {
+						return dependencies[i] = require;
+					} else if(path == 'module') {
+
+					} else if(path == 'exports') {
+
+					}
+
 					var m;
-					path = resolvePath(path, baseURL) + '.js';
+					path = resolvePath(path, path.indexOf('./') == -1 ? '' : baseURL) + '.js?nocache=' + (+new Date());
 					dependencies[i] = path;
 					m = moduleMaps[path];  //将 id 替换为绝对路径
 
@@ -186,10 +174,24 @@
 			var result,
 				factory = this.factory;
 
-			result = factory.apply(this, this.dependencies.slice(0, factory.length));
+			/**
+			 * factory 也可能是对象，例如
+			 *     define({
+			 *     	name: 'test'
+			 *     })
+			 */
+			result = (typeof factory == 'function') ?
+							factory.apply(null, this.dependencies.slice(0, factory.length)) :
+							factory;
+
 			if(typeof result == 'object') {
 				this.exports = result;
 			}
+
+			/**
+			 * 模块已经没有依赖，解决其他依赖该模块的模块
+			 */
+			resolveDependencies(this);
 		}
 	};
 
