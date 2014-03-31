@@ -172,6 +172,7 @@
 
 		resolve: function() {
 			var result,
+				dependencies = this.dependencies || [],
 				factory = this.factory;
 
 			/**
@@ -181,7 +182,7 @@
 			 *     })
 			 */
 			result = (typeof factory == 'function') ?
-							factory.apply(null, this.dependencies.slice(0, factory.length)) :
+							factory.apply(null, dependencies.slice(0, factory.length)) :
 							factory;
 
 			if(typeof result == 'object') {
