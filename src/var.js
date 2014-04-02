@@ -8,11 +8,6 @@ var doc = global.document;
 var moduleMaps = {};
 
 	/**
-	 * 保存 id 与 module 之间的映射
-	 */
-var idMaps = {};
-
-	/**
 	 * 保存需要依赖的模块
 	 * 		key：依赖的模块名
 	 * 		value：依赖 key 模块的所有模块

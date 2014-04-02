@@ -47,8 +47,7 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				path = idMaps[path] = resolvePath(path, baseURL);
-				dependencies[i] = path;
+				dependencies[i] = path = resolvePath(path, baseURL) + '.js';
 				m = moduleMaps[path];  //将 id 替换为绝对路径
 
 				/**
@@ -83,7 +82,7 @@ Module.prototype = {
 						return;
 					}
 				} else {
-					loadJs(path + '.js?nocache=' + (+new Date()));
+					loadJs(path + '?nocache=' + (+new Date()));
 				}
 			})
 		}

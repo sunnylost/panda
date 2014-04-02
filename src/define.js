@@ -37,7 +37,7 @@ function define(id, dependencies, factory) {
 	baseURL = src.substring(0, src.lastIndexOf('/') + 1);
 
 	(moduleMaps[src] = new Module({
-		id:  src, //@TODO, needs id
+		id:  id,
 		baseURL: baseURL,
 		uri: src,
 		dependencies: dependencies,

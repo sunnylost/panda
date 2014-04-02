@@ -4,7 +4,7 @@
  * @todo :如果模块不存在，要抛异常吗？
  */
 function require(id) {
-	var m = moduleMaps[resolvePath(id, this.baseURL)];
+	var m = moduleMaps[resolvePath(id, this.baseURL) + '.js'];
 	return m && m.exports;
 }
 
@@ -12,5 +12,5 @@ function require(id) {
  * 根据 id 返回模块绝对路径
  */
 require.resolve = function(id) {
-	return idMaps[id];
+	return resolvePath(id, this.baseURL) + '.js';
 };

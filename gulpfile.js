@@ -3,8 +3,9 @@ var jshint = require('gulp-jshint');
 var concat = require('gulp-concat');
 var uglify = require('gulp-uglify');
 
-var files = [ 'pre', 'var', 'util', 'depend', 'require', 'module', 'define', 'suf' ];
-files.forEach(function(v, i) {
+var files = [];
+
+[ 'pre', 'var', 'util', 'depend', 'require', 'module', 'define', 'suf' ].forEach(function(v, i) {
 	files[i] = './src/' + v + '.js';
 })
 

@@ -12,11 +12,6 @@ var doc = global.document;
 var moduleMaps = {};
 
 	/**
-	 * 保存 id 与 module 之间的映射
-	 */
-var idMaps = {};
-
-	/**
 	 * 保存需要依赖的模块
 	 * 		key：依赖的模块名
 	 * 		value：依赖 key 模块的所有模块
@@ -95,17 +90,16 @@ function hasDependencyCircle(a, b) {
 	var o = dependencyMaps[a];
 	if(o) {
 		o.forEach(function(m) {
-			m.id == b && (hasDep = true);
+			m.uri == b && (hasDep = true);
 		})
 	}
 	o = dependencyMaps[b];
 	if(o && hasDep) {
 		o.some(function(m) {
-			if(m.id == a) {
+			if(m.uri == a) {
 				console.log("Dependency Circle!");
 				console.log("A = " + a);
 				console.log("B = " + b);
-				console.log(m);
 				return hasCircle = true;
 			}
 		})
@@ -120,16 +114,16 @@ function hasDependencyCircle(a, b) {
  */
 function resolveDependencies(module) {
 	var d,
-		id = module.id,
+		uri = module.uri,
 		dms,
 		exports = module.exports;
 
-	dms = dependencyMaps[id];
+	dms = dependencyMaps[uri];
 	if(dms) {
 		dms.forEach(function(m, i) {
 			d = m.dependencies;
-			d.every(function(depId, i) {
-				if(depId == id) {
+			d.every(function(depUri, i) {
+				if(depUri == uri) {
 					d[i] = exports;
 
 				/**
@@ -137,14 +131,14 @@ function resolveDependencies(module) {
 				 * 这里处理的草率了
 				 * 模块也可能返回字符串
 				 */
-				} else if(typeof depId == 'string') {
+				} else if(typeof depUri == 'string') {
 					return m.isresolved = false;
 				}
 				return m.isresolved = true;
 			})
 			dms.splice(i, 1);
 			if(!dms.length) {
-				delete dependencyMaps[id];
+				delete dependencyMaps[uri];
 			}
 			if(m.isresolved) {
 				m.resolve();
@@ -162,7 +156,7 @@ function resolveDependencies(module) {
  * @todo :如果模块不存在，要抛异常吗？
  */
 function require(id) {
-	var m = moduleMaps[resolvePath(id, this.baseURL)];
+	var m = moduleMaps[resolvePath(id, this.baseURL) + '.js'];
 	return m && m.exports;
 }
 
@@ -170,7 +164,7 @@ function require(id) {
  * 根据 id 返回模块绝对路径
  */
 require.resolve = function(id) {
-	return idMaps[id];
+	return resolvePath(id, this.baseURL) + '.js';
 };
 function Module(option) {
 	this.id = option.id;
@@ -221,8 +215,7 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				path = idMaps[path] = resolvePath(path, baseURL);
-				dependencies[i] = path;
+				dependencies[i] = path = resolvePath(path, baseURL) + '.js';
 				m = moduleMaps[path];  //将 id 替换为绝对路径
 
 				/**
@@ -257,7 +250,7 @@ Module.prototype = {
 						return;
 					}
 				} else {
-					loadJs(path + '.js?nocache=' + (+new Date()));
+					loadJs(path + '?nocache=' + (+new Date()));
 				}
 			})
 		}
@@ -330,7 +323,7 @@ function define(id, dependencies, factory) {
 	baseURL = src.substring(0, src.lastIndexOf('/') + 1);
 
 	(moduleMaps[src] = new Module({
-		id:  src, //@TODO, needs id
+		id:  id,
 		baseURL: baseURL,
 		uri: src,
 		dependencies: dependencies,
