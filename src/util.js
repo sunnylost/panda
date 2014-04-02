@@ -16,13 +16,15 @@ function resolvePath(path, baseURL) {
  * 加载 JS
  * @param  {[String]}   path
  */
-function loadJs(path) {
+function loadJs(path, id) {
 	var script = document.createElement('script');
 	script.onload = function() {
 		script.onload = null;
 		script.parentNode.removeChild(script);
+		var m = moduleMaps[path];
+		m.id || (m.id = id);
 	};
-	script.src = path;
+	script.src = path + '?nocache=' + (+new Date());
 	document.head.appendChild(script);
 }
 

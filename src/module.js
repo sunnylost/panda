@@ -24,14 +24,16 @@ Module.prototype = {
 		var baseURL 	 = module.baseURL;
 		var isresolved   = module.isresolved;
 
+		var path;
+
 		if(!isresolved) {
-			dependencies.forEach(function(path, i) {
-				if(rkeywords.test(path)) {
-					if(path == 'require') {
+			dependencies.forEach(function(id, i) {
+				if(rkeywords.test(id)) {
+					if(id == 'require') {
 						dependencies[i] = require.bind(module);
-					} else if(path == 'module') {
+					} else if(id == 'module') {
 						dependencies[i] = module;
-					} else if(path == 'exports') {
+					} else if(id == 'exports') {
 						dependencies[i] = module.exports;
 					}
 					if(i == dependencies.length - 1) {
@@ -47,7 +49,7 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				dependencies[i] = path = resolvePath(path, baseURL) + '.js';
+				dependencies[i] = path = resolvePath(id, baseURL) + '.js';
 				m = moduleMaps[path];  //将 id 替换为绝对路径
 
 				/**
@@ -82,7 +84,7 @@ Module.prototype = {
 						return;
 					}
 				} else {
-					loadJs(path + '?nocache=' + (+new Date()));
+					loadJs(path, id);
 				}
 			})
 		}
