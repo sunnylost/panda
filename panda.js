@@ -24,7 +24,9 @@
 		tmpAnchor = doc.createElement('a'),
 
 		ArrayProto = Array.prototype,
-		slice = ArrayProto.slice;
+		slice = ArrayProto.slice,
+
+		rnocache = /\?nocache=\d+/;
 
 	function toArray(obj) {
 		return slice.call(obj, 0);
@@ -81,6 +83,34 @@
 	}
 
 	/**
+	 * @todo :是否存在循环依赖
+	 */
+	function hasDependencyCircle(a, b) {
+		var hasCircle = false;
+
+		var o = dependencyMaps[a];
+		if(o) {
+			o.forEach(function(m) {
+				m.id == b && (hasDep = true);
+			})
+		}
+		o = dependencyMaps[b];
+		if(o && hasDep) {
+			o.some(function(m) {
+				if(m.id == a) {
+					console.log("Dependency Circle!");
+					console.log("A = " + a);
+					console.log("B = " + b);
+					console.log(m);
+					return hasCircle = true;
+				}
+			})
+		}
+
+		return hasCircle;
+	}
+
+	/**
 	 * @TODO
 	 * 解决依赖
 	 */
@@ -99,6 +129,11 @@
 						if(depId == id) {
 							d[i] = exports;
 
+						/**
+						 * @TODO
+						 * 这里处理的草率了
+						 * 模块也可能返回字符串
+						 */
 						} else if(typeof depId == 'string') {
 							return m.isresolved = false;
 						}
@@ -127,6 +162,9 @@
 		this.factory = option.factory;
 		this.exports = {};
 		var dep = this.dependencies = option.dependencies;
+		/**
+		 * 模块没有依赖，那么视为*已解决*
+		 */
 		(this.isresolved = !dep || !dep.length) && this.resolve();
 	}
 
@@ -150,22 +188,34 @@
 					if(path == 'require') {
 						return dependencies[i] = require;
 					} else if(path == 'module') {
-
+						return dependencies[i] = module;
 					} else if(path == 'exports') {
-
+						return dependencies[i] = module.exports;
 					}
 
-					var m;
-					path = resolvePath(path, path.indexOf('./') == -1 ? '' : baseURL) + '.js?nocache=' + (+new Date());
+					var m, deps;
+
+					path = resolvePath(path, baseURL) + '.js';
 					dependencies[i] = path;
 					m = moduleMaps[path];  //将 id 替换为绝对路径
 
-					(dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
+					/**
+					 * module 依赖于 m
+					 */
+					(deps = dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
 					if(m && m.isresolved) {
 						resolveDependencies(m);
 						return;
 					}
-					loadJs(path);
+
+					/**
+					 * 对于循环依赖的处理
+					 */
+					if(hasDependencyCircle(path, module.uri)) {
+						console.log(dependencyMaps);
+						return;
+					}
+					loadJs(path + '?nocache=' + (+new Date()));
 				})
 			}
 		},
@@ -175,17 +225,20 @@
 				dependencies = this.dependencies || [],
 				factory = this.factory;
 
+
+			result = (typeof factory == 'function') ?
+							factory.apply(null, dependencies.slice(0, factory.length)) :
+							factory;
+
 			/**
 			 * factory 也可能是对象，例如
 			 *     define({
 			 *     	name: 'test'
 			 *     })
+			 *
+			 *  按照 AMD 规范约定，凡是返回值能够转型为 true 的，都认为是模块 exports 的值
 			 */
-			result = (typeof factory == 'function') ?
-							factory.apply(null, dependencies.slice(0, factory.length)) :
-							factory;
-
-			if(typeof result == 'object') {
+			if(!!result) {
 				this.exports = result;
 			}
 
@@ -234,7 +287,7 @@
 		if(!node) {
 			throw Error('Cannot find current script!')
 		}
-		src = node.src;
+		src = node.src.replace(rnocache, '');
 		baseURL = src.substring(0, src.lastIndexOf('/') + 1);
 
 		(moduleMaps[src] = new Module({
