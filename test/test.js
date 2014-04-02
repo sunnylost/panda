@@ -1,3 +1,3 @@
-define('test', ['a'], function(a) {
-	a.intro();
+define('test', ['require', 'a'], function(require, a) {
+	require('a').intro()
 })

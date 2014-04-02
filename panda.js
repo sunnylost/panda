@@ -9,15 +9,18 @@
 
 		/**
 		 * 保存全部模块引用
-		 * @type {Object}
 		 */
 		moduleMaps = {},
+
+		/**
+		 * 保存 id 与 module 之间的映射
+		 */
+		idMaps = {};
 
 		/**
 		 * 保存需要依赖的模块
 		 * 		key：依赖的模块名
 		 * 		value：依赖 key 模块的所有模块
-		 * @type {Object}
 		 */
 		dependencyMaps = {},
 
@@ -26,7 +29,8 @@
 		ArrayProto = Array.prototype,
 		slice = ArrayProto.slice,
 
-		rnocache = /\?nocache=\d+/;
+		rkeywords = /require|module|exports/,
+		rnocache  = /\?nocache=\d+/;
 
 	function toArray(obj) {
 		return slice.call(obj, 0);
@@ -120,38 +124,36 @@
 			dms,
 			exports = module.exports;
 
-		if(module.isresolved) {
-			dms = dependencyMaps[id];
-			if(dms) {
-				dms.forEach(function(m, i) {
-					d = m.dependencies;
-					d.every(function(depId, i) {
-						if(depId == id) {
-							d[i] = exports;
+		dms = dependencyMaps[id];
+		if(dms) {
+			dms.forEach(function(m, i) {
+				d = m.dependencies;
+				d.every(function(depId, i) {
+					if(depId == id) {
+						d[i] = exports;
 
-						/**
-						 * @TODO
-						 * 这里处理的草率了
-						 * 模块也可能返回字符串
-						 */
-						} else if(typeof depId == 'string') {
-							return m.isresolved = false;
-						}
-						return m.isresolved = true;
-					})
-					dms.splice(i, 1);
-					if(!dms.length) {
-						delete dependencyMaps[id];
+					/**
+					 * @TODO
+					 * 这里处理的草率了
+					 * 模块也可能返回字符串
+					 */
+					} else if(typeof depId == 'string') {
+						return m.isresolved = false;
 					}
-					if(m.isresolved) {
-						m.resolve();
-						/**
-						 * m 的依赖已经解决，然后解决依赖于 m 的模块
-						 */
-						resolveDependencies(m);
-					}
+					return m.isresolved = true;
 				})
-			}
+				dms.splice(i, 1);
+				if(!dms.length) {
+					delete dependencyMaps[id];
+				}
+				if(m.isresolved) {
+					m.resolve();
+					/**
+					 * m 的依赖已经解决，然后解决依赖于 m 的模块
+					 */
+					resolveDependencies(m);
+				}
+			})
 		}
 	}
 
@@ -185,17 +187,25 @@
 
 			if(!isresolved) {
 				dependencies.forEach(function(path, i) {
-					if(path == 'require') {
-						return dependencies[i] = require;
-					} else if(path == 'module') {
-						return dependencies[i] = module;
-					} else if(path == 'exports') {
-						return dependencies[i] = module.exports;
+					if(rkeywords.test(path)) {
+						if(path == 'require') {
+							dependencies[i] = require;
+						} else if(path == 'module') {
+							dependencies[i] = module;
+						} else if(path == 'exports') {
+							dependencies[i] = module.exports;
+						}
+						if(i == dependencies.length - 1) {
+							module.isresolved = true;
+							module.resolve();
+							resolveDependencies(module);
+						}
+						return;
 					}
 
 					var m, deps;
 
-					path = resolvePath(path, baseURL) + '.js';
+					path = idMaps[path] = resolvePath(path, baseURL) + '.js';
 					dependencies[i] = path;
 					m = moduleMaps[path];  //将 id 替换为绝对路径
 
@@ -203,19 +213,37 @@
 					 * module 依赖于 m
 					 */
 					(deps = dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
-					if(m && m.isresolved) {
-						resolveDependencies(m);
-						return;
-					}
 
 					/**
-					 * 对于循环依赖的处理
+					 * 模块已加载，不用重复下载
 					 */
-					if(hasDependencyCircle(path, module.uri)) {
-						console.log(dependencyMaps);
-						return;
+					if(m) {
+						if(m.isresolved) {
+							return resolveDependencies(m);
+						}
+						/**
+						 * @todo: 对于循环依赖的处理
+						 *
+						 * 例如 a 依赖于 b，b 依赖于 a，首先加载 a，然后加载 b
+						 * 在加载 b 之后，发现它和 a 存在循环依赖
+						 * 那么在此处将该依赖关系断开
+						 *
+						 * 这样处理草率吗？还有更好的办法吗？
+						 */
+						if(hasDependencyCircle(path, module.uri)) {
+							dependencies[i] = {};
+							deps.pop();
+
+							if(i == dependencies.length - 1) {
+								module.isresolved = true;
+								resolveDependencies(module);
+							}
+							//console.log(dependencyMaps);
+							return;
+						}
+					} else {
+						loadJs(path + '?nocache=' + (+new Date()));
 					}
-					loadJs(path + '?nocache=' + (+new Date()));
 				})
 			}
 		},
@@ -249,8 +277,22 @@
 		}
 	};
 
-	function require() {
+	/**
+	 * 根据 id 加载模块
+	 *
+	 * @todo :如果模块不存在，要抛异常吗？
+	 */
+	function require(id) {
+		var m = moduleMaps[idMaps[id]];
+		return m && m.exports;
 	}
+
+	/**
+	 * 根据 id 返回模块绝对路径
+	 */
+	require.resolve = function(id) {
+		return idMaps[id];
+	};
 
 	/**
 	 *

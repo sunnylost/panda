@@ -1,5 +1,5 @@
-define('c', ['b'], function(b) {
-	console.log('Ha, I find ' + b.name);
+define('c', ['require', 'b'], function(require) {
+	console.log('Ha, I find ' + require('b').name);
 	return {
 		name: 'C'
 	}
