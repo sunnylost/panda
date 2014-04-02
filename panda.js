@@ -205,6 +205,9 @@
 
 					var m, deps;
 
+					/**
+					 * @todo: path 重复肿么办？
+					 */
 					path = idMaps[path] = resolvePath(path, baseURL) + '.js';
 					dependencies[i] = path;
 					m = moduleMaps[path];  //将 id 替换为绝对路径
@@ -236,9 +239,8 @@
 
 							if(i == dependencies.length - 1) {
 								module.isresolved = true;
-								resolveDependencies(module);
+								module.resolve();
 							}
-							//console.log(dependencyMaps);
 							return;
 						}
 					} else {
