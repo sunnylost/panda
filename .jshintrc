@@ -1,0 +1,14 @@
+{
+	"asi": true,
+	"camelcase": true,
+	"expr": true,
+	"immed": true,
+	"maxdepth": 5,
+	"undef": true,
+  	"unused": true,
+
+  	"globals": {
+  		"console": true,
+  		"document": true
+  	}
+}
