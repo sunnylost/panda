@@ -4,6 +4,7 @@ function Module(option) {
 	this.baseUrl = option.baseUrl;
 	this.factory = option.factory;
 	this.exports = {};
+	this.dependencyLength = option.dependencyLength;
 	var dep = this.dependencies = option.dependencies;
 	/**
 	 * 模块没有依赖，那么视为*已解决*
@@ -72,7 +73,7 @@ Module.prototype = {
 					 * 这样处理草率吗？还有更好的办法吗？
 					 */
 					if(hasDependencyCircle(id, module.id)) {
-						dependencies[i] = {};
+						dependencies[i] = moduleMaps[id] || {};
 						deps.pop();
 
 						if(i == dependencies.length - 1) {
@@ -95,13 +96,18 @@ Module.prototype = {
 	},
 
 	resolve: function() {
-		var result,
-			dependencies = this.dependencies || [ require.proxy(this), this.exports, this],
-			factory = this.factory;
+		var result;
+		var defaultArgs  = [ require.proxy(this), this.exports, this];
+		var dependencies = this.dependencies || [];
+		var factory      = this.factory;
+		var argLength    = factory.length;
 
+		if(argLength > dependencies.length) {
+			dependencies = defaultArgs.concat(dependencies);
+		}
 
 		result = (typeof factory == 'function') ?
-						factory.apply(null, dependencies.slice(0, factory.length)) :
+						factory.apply(null, dependencies.slice(0, argLength)) :
 						factory;
 
 		/**

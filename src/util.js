@@ -74,9 +74,14 @@ function getCurrentScript() {
 	}
 }
 
+var rrequireparams = /require\((['"])([^)]+?)\1\)/mg;
+
 /**
  * 从函数源码中提取 require(xxx) 中的 xxx，即依赖的模块名
  */
 function parseRequireParam(str) {
-	console.log(str);
+	var deps = str.match(rrequireparams);
+	return deps ? (deps.forEach(function(v, i) {
+		deps[i] = v.replace(rrequireparams, '$2');
+	}), deps) : [];
 }

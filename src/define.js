@@ -38,6 +38,12 @@ function define(id, dependencies, factory) {
 	baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
 
 	id || (id = src.substring(lastIndex + 1).replace('.js', ''));
+	//dependencies = (dependencies ? dependencies : []).concat(parseRequireParam(factory ? factory.toString() : ''));
+	/*cmdRequire = parseRequireParam(factory ? factory.toString() : '');
+
+	cmdRequire.length && setTimeout(function() {
+		define(cmdRequire, function() {});
+	}, 0);*/
 
 	(moduleMaps[id] = new Module({
 		id:  id,
