@@ -20,11 +20,28 @@ var dependencyMaps = {};
 
 var tmpAnchor = doc.createElement('a');
 
-var ArrayProto = Array.prototype;
-var slice = ArrayProto.slice;
+var ArrayProto  = Array.prototype;
+var ObjectProto = Object.prototype;
 
+var slice = ArrayProto.slice;
+var toString = ObjectProto.toString;
+
+/**
+ * 检测绝对路径
+ * 	1，以 .js 结尾
+ * 	2，以 / 开头
+ * 	3，以 http 或 https 开头
+ *
+ *  对于绝对路径不做路径处理
+ */
+var rabsolutepath = /(^(?:http|https|\/)|\.(?=js$))/g;
 var rkeywords = /require|module|exports/;
 var rnocache  = /\?nocache=\d+/;
+
+
+function isArray(obj) {
+	return toString.call(obj) === '[object Array]';
+}
 
 function toArray(obj) {
 	return slice.call(obj, 0);
@@ -50,6 +67,9 @@ function loadJs(path, id) {
 		script.parentNode.removeChild(script);
 		var m = moduleMaps[path];
 		m.id || (m.id = id);
+
+		console.log('moduleMaps ', moduleMaps);
+		console.log('dependencyMaps ', dependencyMaps);
 	};
 	script.src = path + '?nocache=' + (+new Date());
 	document.head.appendChild(script);
@@ -82,6 +102,12 @@ function getCurrentScript() {
 	}
 }
 
+/**
+ * 从函数源码中提取 require(xxx) 中的 xxx，即依赖的模块名
+ */
+function parseRequireParam(str) {
+	console.log(str);
+}
 /**
  * @todo :是否存在循环依赖
  */
@@ -157,17 +183,35 @@ function resolveDependencies(module) {
  *
  * @todo :如果模块不存在，要抛异常吗？
  */
-function require(id) {
-	var m = moduleMaps[resolvePath(id, this.baseURL) + '.js'];
-	return m && m.exports;
+function require(id, factory) {
+	if(!factory) {
+		var m = moduleMaps[resolvePath(id, this.baseURL) + '.js'];
+		return m && m.exports;
+	} else {
+		this.dependencies = isArray(id) ? id : [id];
+		this.factory = factory;
+		this.isresolved = false;
+		this.load();
+	}
 }
 
 /**
  * 根据 id 返回模块绝对路径
  */
-require.resolve = function(id) {
-	return resolvePath(id, this.baseURL) + '.js';
+require.toUrl = require.resolve = function(id) {
+	return resolvePath(id, this.baseURL);
 };
+
+/**
+ * 封装一个新对象来模拟 require，主要是为了保持 this 状态
+ */
+require.proxy = function(obj) {
+	var fn = require.bind(obj);
+	fn.toUrl = fn.resolve = function(path) {
+		return require.resolve.call(obj, path);
+	};
+	return fn;
+}
 function Module(option) {
 	this.id = option.id;
 	this.uri = option.uri;
@@ -193,6 +237,7 @@ Module.prototype = {
 		var dependencies = module.dependencies;
 		var baseURL 	 = module.baseURL;
 		var isresolved   = module.isresolved;
+		var hasDept      = false; //不仅仅是依赖 require，module，exports
 
 		var path;
 
@@ -200,19 +245,16 @@ Module.prototype = {
 			dependencies.forEach(function(id, i) {
 				if(rkeywords.test(id)) {
 					if(id == 'require') {
-						dependencies[i] = require.bind(module);
+						dependencies[i] = require.proxy(module);
 					} else if(id == 'module') {
 						dependencies[i] = module;
 					} else if(id == 'exports') {
 						dependencies[i] = module.exports;
 					}
-					if(i == dependencies.length - 1) {
-						module.isresolved = true;
-						module.resolve();
-						resolveDependencies(module);
-					}
 					return;
 				}
+
+				hasDept = true;
 
 				var m, deps;
 
@@ -257,12 +299,18 @@ Module.prototype = {
 					loadJs(path, id);
 				}
 			})
+
+			if(!hasDept) {
+				module.isresolved = true;
+				module.resolve();
+				resolveDependencies(module);
+			}
 		}
 	},
 
 	resolve: function() {
 		var result,
-			dependencies = this.dependencies || [],
+			dependencies = this.dependencies || [ require.proxy(this), this.exports, this],
 			factory = this.factory;
 
 
@@ -326,6 +374,11 @@ function define(id, dependencies, factory) {
 	src = node.src.replace(rnocache, '');
 	baseURL = src.substring(0, src.lastIndexOf('/') + 1);
 
+	//parseRequireParam(factory.toString());
+	if(rabsolutepath.test(id)) {
+		src = id;
+	}
+
 	(moduleMaps[src] = new Module({
 		id:  id,
 		baseURL: baseURL,
@@ -341,7 +394,7 @@ function define(id, dependencies, factory) {
 	define.amd = {};
 
 	/**
-	 * 对外提供 define 接口
+	 * 对外提供接口
 	 */
 	this.define = define;
 }.call(this))

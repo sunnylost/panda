@@ -1,4 +1,8 @@
 
+function isArray(obj) {
+	return toString.call(obj) === '[object Array]';
+}
+
 function toArray(obj) {
 	return slice.call(obj, 0);
 }
@@ -23,6 +27,9 @@ function loadJs(path, id) {
 		script.parentNode.removeChild(script);
 		var m = moduleMaps[path];
 		m.id || (m.id = id);
+
+		console.log('moduleMaps ', moduleMaps);
+		console.log('dependencyMaps ', dependencyMaps);
 	};
 	script.src = path + '?nocache=' + (+new Date());
 	document.head.appendChild(script);
@@ -53,4 +60,11 @@ function getCurrentScript() {
 			}
 		}
 	}
+}
+
+/**
+ * 从函数源码中提取 require(xxx) 中的 xxx，即依赖的模块名
+ */
+function parseRequireParam(str) {
+	console.log(str);
 }

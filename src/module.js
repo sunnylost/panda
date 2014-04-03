@@ -23,6 +23,7 @@ Module.prototype = {
 		var dependencies = module.dependencies;
 		var baseURL 	 = module.baseURL;
 		var isresolved   = module.isresolved;
+		var hasDept      = false; //不仅仅是依赖 require，module，exports
 
 		var path;
 
@@ -30,19 +31,16 @@ Module.prototype = {
 			dependencies.forEach(function(id, i) {
 				if(rkeywords.test(id)) {
 					if(id == 'require') {
-						dependencies[i] = require.bind(module);
+						dependencies[i] = require.proxy(module);
 					} else if(id == 'module') {
 						dependencies[i] = module;
 					} else if(id == 'exports') {
 						dependencies[i] = module.exports;
 					}
-					if(i == dependencies.length - 1) {
-						module.isresolved = true;
-						module.resolve();
-						resolveDependencies(module);
-					}
 					return;
 				}
+
+				hasDept = true;
 
 				var m, deps;
 
@@ -87,12 +85,18 @@ Module.prototype = {
 					loadJs(path, id);
 				}
 			})
+
+			if(!hasDept) {
+				module.isresolved = true;
+				module.resolve();
+				resolveDependencies(module);
+			}
 		}
 	},
 
 	resolve: function() {
 		var result,
-			dependencies = this.dependencies || [],
+			dependencies = this.dependencies || [ require.proxy(this), this.exports, this],
 			factory = this.factory;
 
 

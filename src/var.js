@@ -16,8 +16,20 @@ var dependencyMaps = {};
 
 var tmpAnchor = doc.createElement('a');
 
-var ArrayProto = Array.prototype;
-var slice = ArrayProto.slice;
+var ArrayProto  = Array.prototype;
+var ObjectProto = Object.prototype;
 
+var slice = ArrayProto.slice;
+var toString = ObjectProto.toString;
+
+/**
+ * 检测绝对路径
+ * 	1，以 .js 结尾
+ * 	2，以 / 开头
+ * 	3，以 http 或 https 开头
+ *
+ *  对于绝对路径不做路径处理
+ */
+var rabsolutepath = /(^(?:http|https|\/)|\.(?=js$))/g;
 var rkeywords = /require|module|exports/;
 var rnocache  = /\?nocache=\d+/;

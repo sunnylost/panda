@@ -36,6 +36,11 @@ function define(id, dependencies, factory) {
 	src = node.src.replace(rnocache, '');
 	baseURL = src.substring(0, src.lastIndexOf('/') + 1);
 
+	//parseRequireParam(factory.toString());
+	if(rabsolutepath.test(id)) {
+		src = id;
+	}
+
 	(moduleMaps[src] = new Module({
 		id:  id,
 		baseURL: baseURL,
