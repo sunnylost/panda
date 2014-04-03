@@ -17,13 +17,16 @@ function convertIdToPath(id, baseUrl) {
 	var len    	   = pieces.length;
 	var configInfo = panda.configInfo;
 	var paths  	   = configInfo.paths;
+	var base       = configInfo.baseUrl;
 	var tmp;
 
+	base ? (base.lastIndexOf('/') == (base.length - 1) || (base += '/')) : (base = baseUrl);
+
 	for(var i = 0; i < len; i++) {
-		tmp = paths[tmp];
+		tmp = paths[pieces[i]];
 		tmp && (pieces[i] = tmp);
 	}
-	tmpAnchor.href = configInfo.baseUrl ? configInfo.baseUrl : baseUrl + pieces.join('/');
+	tmpAnchor.href = base + pieces.join('/');
 	return tmpAnchor.href;
 }
 
