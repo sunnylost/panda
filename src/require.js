@@ -5,7 +5,7 @@
  */
 function require(id, factory) {
 	if(!factory) {
-		var m = moduleMaps[resolvePath(id, this.baseURL) + '.js'];
+		var m = moduleMaps[convertIdToPath(id, this.baseURL) + '.js'];
 		return m && m.exports;
 	} else {
 		this.dependencies = isArray(id) ? id : [id];
@@ -19,7 +19,7 @@ function require(id, factory) {
  * 根据 id 返回模块绝对路径
  */
 require.toUrl = require.resolve = function(id) {
-	return resolvePath(id, this.baseURL);
+	return convertIdToPath(id, this.baseURL);
 };
 
 /**

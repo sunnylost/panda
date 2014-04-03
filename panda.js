@@ -25,6 +25,7 @@ var ObjectProto = Object.prototype;
 
 var slice = ArrayProto.slice;
 var toString = ObjectProto.toString;
+var hasOwn   = ObjectProto.hasOwnProperty;
 
 /**
  * 检测绝对路径
@@ -48,11 +49,22 @@ function toArray(obj) {
 }
 
 /**
- * @TODO 将相对路径解析为绝对路径
- * @return {[type]} [description]
+ * 将 id 解析为绝对路径
  */
-function resolvePath(path, baseURL) {
-	tmpAnchor.href = baseURL + path;
+function convertIdToPath(id, baseUrl) {
+	if(!id) return '';  //会有 id 不存在的情况吗？
+	if(rabsolutepath.test(id)) return id; //绝对路径不做处理
+	var pieces     = id.split('/');
+	var len    	   = pieces.length;
+	var configInfo = panda.configInfo;
+	var paths  	   = configInfo.paths;
+	var tmp;
+
+	for(var i = 0; i < len; i++) {
+		tmp = paths[tmp];
+		tmp && (pieces[i] = tmp);
+	}
+	tmpAnchor.href = configInfo.baseUrl ? configInfo.baseUrl : baseUrl + pieces.join('/');
 	return tmpAnchor.href;
 }
 
@@ -108,6 +120,25 @@ function getCurrentScript() {
 function parseRequireParam(str) {
 	console.log(str);
 }
+
+/**
+ * 配置信息
+ */
+function panda() {
+}
+
+panda.config = function(config) {
+	for(var k in config) {
+		if(hasOwn.call(config, k)) {
+			configInfo[k] = config[k];
+		}
+	}
+	this.configInfo = configInfo;
+};
+
+panda.configInfo = {
+	paths: {}
+};
 /**
  * @todo :是否存在循环依赖
  */
@@ -185,7 +216,7 @@ function resolveDependencies(module) {
  */
 function require(id, factory) {
 	if(!factory) {
-		var m = moduleMaps[resolvePath(id, this.baseURL) + '.js'];
+		var m = moduleMaps[convertIdToPath(id, this.baseURL) + '.js'];
 		return m && m.exports;
 	} else {
 		this.dependencies = isArray(id) ? id : [id];
@@ -199,7 +230,7 @@ function require(id, factory) {
  * 根据 id 返回模块绝对路径
  */
 require.toUrl = require.resolve = function(id) {
-	return resolvePath(id, this.baseURL);
+	return convertIdToPath(id, this.baseURL);
 };
 
 /**
@@ -261,7 +292,7 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				dependencies[i] = path = resolvePath(id, baseURL) + '.js';
+				dependencies[i] = path = convertIdToPath(id, baseURL) + '.js';
 				m = moduleMaps[path];  //将 id 替换为绝对路径
 
 				/**
@@ -374,11 +405,6 @@ function define(id, dependencies, factory) {
 	src = node.src.replace(rnocache, '');
 	baseURL = src.substring(0, src.lastIndexOf('/') + 1);
 
-	//parseRequireParam(factory.toString());
-	if(rabsolutepath.test(id)) {
-		src = id;
-	}
-
 	(moduleMaps[src] = new Module({
 		id:  id,
 		baseURL: baseURL,
@@ -397,4 +423,5 @@ function define(id, dependencies, factory) {
 	 * 对外提供接口
 	 */
 	this.define = define;
+	this.panda  = panda;
 }.call(this))

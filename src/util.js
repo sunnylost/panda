@@ -8,11 +8,22 @@ function toArray(obj) {
 }
 
 /**
- * @TODO 将相对路径解析为绝对路径
- * @return {[type]} [description]
+ * 将 id 解析为绝对路径
  */
-function resolvePath(path, baseURL) {
-	tmpAnchor.href = baseURL + path;
+function convertIdToPath(id, baseUrl) {
+	if(!id) return '';  //会有 id 不存在的情况吗？
+	if(rabsolutepath.test(id)) return id; //绝对路径不做处理
+	var pieces     = id.split('/');
+	var len    	   = pieces.length;
+	var configInfo = panda.configInfo;
+	var paths  	   = configInfo.paths;
+	var tmp;
+
+	for(var i = 0; i < len; i++) {
+		tmp = paths[tmp];
+		tmp && (pieces[i] = tmp);
+	}
+	tmpAnchor.href = configInfo.baseUrl ? configInfo.baseUrl : baseUrl + pieces.join('/');
 	return tmpAnchor.href;
 }
 

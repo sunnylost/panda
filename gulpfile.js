@@ -5,7 +5,7 @@ var uglify = require('gulp-uglify');
 
 var files = [];
 
-[ 'pre', 'var', 'util', 'depend', 'require', 'module', 'define', 'suf' ].forEach(function(v, i) {
+[ 'pre', 'var', 'util', 'panda', 'depend', 'require', 'module', 'define', 'suf' ].forEach(function(v, i) {
 	files[i] = './src/' + v + '.js';
 })
 

@@ -21,6 +21,7 @@ var ObjectProto = Object.prototype;
 
 var slice = ArrayProto.slice;
 var toString = ObjectProto.toString;
+var hasOwn   = ObjectProto.hasOwnProperty;
 
 /**
  * 检测绝对路径

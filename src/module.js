@@ -47,7 +47,7 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				dependencies[i] = path = resolvePath(id, baseURL) + '.js';
+				dependencies[i] = path = convertIdToPath(id, baseURL) + '.js';
 				m = moduleMaps[path];  //将 id 替换为绝对路径
 
 				/**
