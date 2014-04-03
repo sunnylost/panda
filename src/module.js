@@ -1,7 +1,7 @@
 function Module(option) {
 	this.id = option.id;
 	this.uri = option.uri;
-	this.baseURL = option.baseURL;
+	this.baseUrl = option.baseUrl;
 	this.factory = option.factory;
 	this.exports = {};
 	var dep = this.dependencies = option.dependencies;
@@ -21,7 +21,7 @@ Module.prototype = {
 	load: function() {
 		var module 		 = this;
 		var dependencies = module.dependencies;
-		var baseURL 	 = module.baseURL;
+		var baseUrl 	 = module.baseUrl;
 		var isresolved   = module.isresolved;
 		var hasDept      = false; //不仅仅是依赖 require，module，exports
 
@@ -47,13 +47,13 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				dependencies[i] = path = convertIdToPath(id, baseURL) + '.js';
-				m = moduleMaps[path];  //将 id 替换为绝对路径
+				path = convertIdToPath(id, baseUrl) + '.js';
+				m = moduleMaps[id];  //将 id 替换为绝对路径
 
 				/**
 				 * module 依赖于 m
 				 */
-				(deps = dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
+				(deps = dependencyMaps[id] || (dependencyMaps[id] = [])).push(module);
 
 				/**
 				 * 模块已加载，不用重复下载
@@ -71,7 +71,7 @@ Module.prototype = {
 					 *
 					 * 这样处理草率吗？还有更好的办法吗？
 					 */
-					if(hasDependencyCircle(path, module.uri)) {
+					if(hasDependencyCircle(id, module.id)) {
 						dependencies[i] = {};
 						deps.pop();
 
@@ -82,7 +82,7 @@ Module.prototype = {
 						return;
 					}
 				} else {
-					loadJs(path, id);
+					loadJs(path);
 				}
 			})
 

@@ -61,7 +61,7 @@ function convertIdToPath(id, baseUrl) {
 	var base       = configInfo.baseUrl;
 	var tmp;
 
-	base ? (base.lastIndexOf('/') == (base.length - 1) || (base += '/')) : (base = baseUrl);
+	base ? (base.lastIndexOf('/') == (base.length - 1) || (base += '/')) : (base = baseUrl || '');
 
 	for(var i = 0; i < len; i++) {
 		tmp = paths[pieces[i]];
@@ -75,13 +75,11 @@ function convertIdToPath(id, baseUrl) {
  * 加载 JS
  * @param  {[String]}   path
  */
-function loadJs(path, id) {
+function loadJs(path) {
 	var script = document.createElement('script');
 	script.onload = function() {
 		script.onload = null;
 		script.parentNode.removeChild(script);
-		var m = moduleMaps[path];
-		m.id || (m.id = id);
 
 		console.log('moduleMaps ', moduleMaps);
 		console.log('dependencyMaps ', dependencyMaps);
@@ -153,13 +151,13 @@ function hasDependencyCircle(a, b) {
 	var o = dependencyMaps[a];
 	if(o) {
 		o.forEach(function(m) {
-			m.uri == b && (hasDep = true);
+			m.id == b && (hasDep = true);
 		})
 	}
 	o = dependencyMaps[b];
 	if(o && hasDep) {
 		o.some(function(m) {
-			if(m.uri == a) {
+			if(m.id == a) {
 				console.log("Dependency Circle!");
 				console.log("A = " + a);
 				console.log("B = " + b);
@@ -177,16 +175,16 @@ function hasDependencyCircle(a, b) {
  */
 function resolveDependencies(module) {
 	var d,
-		uri = module.uri,
+		id = module.id,
 		dms,
 		exports = module.exports;
 
-	dms = dependencyMaps[uri];
+	dms = dependencyMaps[id];
 	if(dms) {
 		dms.forEach(function(m, i) {
 			d = m.dependencies;
-			d.every(function(depUri, i) {
-				if(depUri == uri) {
+			d.every(function(depId, i) {
+				if(depId == id) {
 					d[i] = exports;
 
 				/**
@@ -194,14 +192,14 @@ function resolveDependencies(module) {
 				 * 这里处理的草率了
 				 * 模块也可能返回字符串
 				 */
-				} else if(typeof depUri == 'string') {
+				} else if(typeof depId == 'string') {
 					return m.isresolved = false;
 				}
 				return m.isresolved = true;
 			})
 			dms.splice(i, 1);
 			if(!dms.length) {
-				delete dependencyMaps[uri];
+				delete dependencyMaps[id];
 			}
 			if(m.isresolved) {
 				m.resolve();
@@ -220,7 +218,7 @@ function resolveDependencies(module) {
  */
 function require(id, factory) {
 	if(!factory) {
-		var m = moduleMaps[convertIdToPath(id, this.baseURL) + '.js'];
+		var m = moduleMaps[id];
 		return m && m.exports;
 	} else {
 		this.dependencies = isArray(id) ? id : [id];
@@ -250,7 +248,7 @@ require.proxy = function(obj) {
 function Module(option) {
 	this.id = option.id;
 	this.uri = option.uri;
-	this.baseURL = option.baseURL;
+	this.baseUrl = option.baseUrl;
 	this.factory = option.factory;
 	this.exports = {};
 	var dep = this.dependencies = option.dependencies;
@@ -270,7 +268,7 @@ Module.prototype = {
 	load: function() {
 		var module 		 = this;
 		var dependencies = module.dependencies;
-		var baseURL 	 = module.baseURL;
+		var baseUrl 	 = module.baseUrl;
 		var isresolved   = module.isresolved;
 		var hasDept      = false; //不仅仅是依赖 require，module，exports
 
@@ -296,13 +294,13 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				dependencies[i] = path = convertIdToPath(id, baseURL) + '.js';
-				m = moduleMaps[path];  //将 id 替换为绝对路径
+				path = convertIdToPath(id, baseUrl) + '.js';
+				m = moduleMaps[id];  //将 id 替换为绝对路径
 
 				/**
 				 * module 依赖于 m
 				 */
-				(deps = dependencyMaps[path] || (dependencyMaps[path] = [])).push(module);
+				(deps = dependencyMaps[id] || (dependencyMaps[id] = [])).push(module);
 
 				/**
 				 * 模块已加载，不用重复下载
@@ -320,7 +318,7 @@ Module.prototype = {
 					 *
 					 * 这样处理草率吗？还有更好的办法吗？
 					 */
-					if(hasDependencyCircle(path, module.uri)) {
+					if(hasDependencyCircle(id, module.id)) {
 						dependencies[i] = {};
 						deps.pop();
 
@@ -331,7 +329,7 @@ Module.prototype = {
 						return;
 					}
 				} else {
-					loadJs(path, id);
+					loadJs(path);
 				}
 			})
 
@@ -379,10 +377,11 @@ Module.prototype = {
  * @return {[type]}
  */
 function define(id, dependencies, factory) {
-	var argLen = arguments.length,
-		node,
-		src,
-		baseURL;
+	var argLen = arguments.length;
+	var node;
+	var src;
+	var baseUrl;
+	var lastIndex;
 
 	/**
 	 * 处理参数
@@ -407,11 +406,13 @@ function define(id, dependencies, factory) {
 		throw Error('Cannot find current script!')
 	}
 	src = node.src.replace(rnocache, '');
-	baseURL = src.substring(0, src.lastIndexOf('/') + 1);
+	baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
 
-	(moduleMaps[src] = new Module({
+	id || (id = src.substring(lastIndex + 1).replace('.js', ''));
+
+	(moduleMaps[id] = new Module({
 		id:  id,
-		baseURL: baseURL,
+		baseUrl: baseUrl,
 		uri: src,
 		dependencies: dependencies,
 		factory: factory

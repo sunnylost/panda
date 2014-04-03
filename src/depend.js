@@ -8,13 +8,13 @@ function hasDependencyCircle(a, b) {
 	var o = dependencyMaps[a];
 	if(o) {
 		o.forEach(function(m) {
-			m.uri == b && (hasDep = true);
+			m.id == b && (hasDep = true);
 		})
 	}
 	o = dependencyMaps[b];
 	if(o && hasDep) {
 		o.some(function(m) {
-			if(m.uri == a) {
+			if(m.id == a) {
 				console.log("Dependency Circle!");
 				console.log("A = " + a);
 				console.log("B = " + b);
@@ -32,16 +32,16 @@ function hasDependencyCircle(a, b) {
  */
 function resolveDependencies(module) {
 	var d,
-		uri = module.uri,
+		id = module.id,
 		dms,
 		exports = module.exports;
 
-	dms = dependencyMaps[uri];
+	dms = dependencyMaps[id];
 	if(dms) {
 		dms.forEach(function(m, i) {
 			d = m.dependencies;
-			d.every(function(depUri, i) {
-				if(depUri == uri) {
+			d.every(function(depId, i) {
+				if(depId == id) {
 					d[i] = exports;
 
 				/**
@@ -49,14 +49,14 @@ function resolveDependencies(module) {
 				 * 这里处理的草率了
 				 * 模块也可能返回字符串
 				 */
-				} else if(typeof depUri == 'string') {
+				} else if(typeof depId == 'string') {
 					return m.isresolved = false;
 				}
 				return m.isresolved = true;
 			})
 			dms.splice(i, 1);
 			if(!dms.length) {
-				delete dependencyMaps[uri];
+				delete dependencyMaps[id];
 			}
 			if(m.isresolved) {
 				m.resolve();

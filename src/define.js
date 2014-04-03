@@ -6,10 +6,11 @@
  * @return {[type]}
  */
 function define(id, dependencies, factory) {
-	var argLen = arguments.length,
-		node,
-		src,
-		baseURL;
+	var argLen = arguments.length;
+	var node;
+	var src;
+	var baseUrl;
+	var lastIndex;
 
 	/**
 	 * 处理参数
@@ -34,11 +35,13 @@ function define(id, dependencies, factory) {
 		throw Error('Cannot find current script!')
 	}
 	src = node.src.replace(rnocache, '');
-	baseURL = src.substring(0, src.lastIndexOf('/') + 1);
+	baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
 
-	(moduleMaps[src] = new Module({
+	id || (id = src.substring(lastIndex + 1).replace('.js', ''));
+
+	(moduleMaps[id] = new Module({
 		id:  id,
-		baseURL: baseURL,
+		baseUrl: baseUrl,
 		uri: src,
 		dependencies: dependencies,
 		factory: factory

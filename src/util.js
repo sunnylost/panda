@@ -20,7 +20,7 @@ function convertIdToPath(id, baseUrl) {
 	var base       = configInfo.baseUrl;
 	var tmp;
 
-	base ? (base.lastIndexOf('/') == (base.length - 1) || (base += '/')) : (base = baseUrl);
+	base ? (base.lastIndexOf('/') == (base.length - 1) || (base += '/')) : (base = baseUrl || '');
 
 	for(var i = 0; i < len; i++) {
 		tmp = paths[pieces[i]];
@@ -34,13 +34,11 @@ function convertIdToPath(id, baseUrl) {
  * 加载 JS
  * @param  {[String]}   path
  */
-function loadJs(path, id) {
+function loadJs(path) {
 	var script = document.createElement('script');
 	script.onload = function() {
 		script.onload = null;
 		script.parentNode.removeChild(script);
-		var m = moduleMaps[path];
-		m.id || (m.id = id);
 
 		console.log('moduleMaps ', moduleMaps);
 		console.log('dependencyMaps ', dependencyMaps);

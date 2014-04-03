@@ -5,7 +5,7 @@
  */
 function require(id, factory) {
 	if(!factory) {
-		var m = moduleMaps[convertIdToPath(id, this.baseURL) + '.js'];
+		var m = moduleMaps[id];
 		return m && m.exports;
 	} else {
 		this.dependencies = isArray(id) ? id : [id];
