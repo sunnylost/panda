@@ -36,8 +36,14 @@ var hasOwn   = ObjectProto.hasOwnProperty;
  *  对于绝对路径不做路径处理
  */
 var rabsolutepath = /(^(?:http|https|\/)|\.(?=js$))/g;
+var risrelative   = /^\.{1,2}/;
 var rkeywords = /require|module|exports/;
 var rnocache  = /\?nocache=\d+/;
+
+var guid = 0;
+var ANONYMOUS_MODULE = 'anonymous';
+
+var curBaeUrl;
 
 var CANNOT_FIND_NODE = 'Cannot find current script!';
 
@@ -166,7 +172,7 @@ function resolveDependencies(module) {
 		dms,
 		exports = module.exports;
 
-	dms = dependencyMaps[id];
+	dms = dependencyMaps[id] || dependencyMaps[id = module.uri];
 	if(dms) {
 		dms.forEach(function(m, i) {
 			d = m.dependencies;
@@ -202,11 +208,27 @@ function resolveDependencies(module) {
  * @todo :如果模块不存在，要抛异常吗？
  */
 function require(id, factory) {
+	var m;
+
 	if(!factory) {
-		var m = moduleMaps[require.toUrl.call(this, id) + '.js'];
+		m = moduleMaps[require.toUrl.call(this, id) + '.js'];
 		return m && m.exports;
 	} else {
-		define(isArray(id) ? id : [id], factory);
+		curBaeUrl = this.baseUrl;
+		define(ANONYMOUS_MODULE + guid++, isArray(id) ? id : [id], factory);
+		curBaeUrl = '';
+		/*(isArray(id) ? id : [id]).forEach(function(v, i) {
+			m = moduleMaps[convertIdToPath(v, )];
+		})*/
+/*		m = new Module({
+			id: id,
+			src: id,
+			baseUrl: this.baseUrl,
+			dependencies: isArray(id) ? id : [id],
+			factory: factory
+		})
+
+		m.load();*/
 	}
 }
 
@@ -214,7 +236,7 @@ function require(id, factory) {
  * 根据 id 返回模块绝对路径
  */
 require.toUrl = require.resolve = function(id) {
-	return convertIdToPath(id, this.baseURL);
+	return convertIdToPath(id, this.baseUrl);
 };
 
 /**
@@ -288,8 +310,6 @@ Module.prototype = {
 		var isresolved   = module.isresolved;
 		var hasDept      = false; //不仅仅是依赖 require，module，exports
 
-		var path;
-
 		if(!isresolved) {
 			dependencies.forEach(function(id, i) {
 				if(rkeywords.test(id)) {
@@ -315,8 +335,7 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				id = convertIdToPath(id, baseUrl) + '.js';
-				m = moduleMaps[id];  //将 id 替换为绝对路径
+				m = moduleMaps[id] || (moduleMaps[id = convertIdToPath(id, baseUrl) + '.js'])
 				/**
 				 * 依赖采用新的结构
 				 * 		id: 依赖模块 id
@@ -376,14 +395,20 @@ Module.prototype = {
 	resolve: function() {
 		var result;
 		var defaultArgs  = [ require.proxy(this), this.exports, this];
-		var dependencies = this.dependencies || [];
+		var dependencies = this.dependencies;
 		var factory      = this.factory;
 		var argLength    = factory.length;
+
+		if(!dependencies) {
+			dependencies = [];
+			argLength = 3;
+		} else if(dependencies.length == 0) {
+			argLength = 0;
+		}
 
 		dependencies.forEach(function(v, i) {
 			dependencies[i] = v.value;
 		})
-
 		if(argLength > dependencies.length) {
 			dependencies = defaultArgs.concat(dependencies);
 		}
@@ -403,6 +428,8 @@ Module.prototype = {
 		if(!!result) {
 			this.exports = result;
 		}
+
+		moduleMaps[this.id] = this.exports;
 
 		/**
 		 * 模块已经没有依赖，解决其他依赖该模块的模块
@@ -453,28 +480,25 @@ function define(id, dependencies, factory) {
 		}
 	}
 
-	baseUrl = panda.configInfo.baseUrl;
+	baseUrl = curBaeUrl || panda.configInfo.baseUrl;
 	if(!baseUrl) {
 		node = getCurrentScript();
-		if(!node) {
-			throw Error(CANNOT_FIND_NODE)
+		if(node) {
+			src = node.src.replace(rnocache, '');
+			baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
+			if(!id) {
+				id = src;
+			}
 		}
-		src = node.src.replace(rnocache, '');
-		baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
-		id = src;
-	} else {
-		src = id = convertIdToPath(id, baseUrl);
 	}
 
+	if(!id) {
+		id = ANONYMOUS_MODULE + guid++;
+	}
 
-	console.log('ID = ' + id);
-
-	//dependencies = (dependencies ? dependencies : []).concat(parseRequireParam(factory ? factory.toString() : ''));
-	/*cmdRequire = parseRequireParam(factory ? factory.toString() : '');
-
-	cmdRequire.length && setTimeout(function() {
-		define(cmdRequire, function() {});
-	}, 0);*/
+	if(risrelative.test(id)) {
+		id = convertIdToPath(id);
+	}
 
 	(moduleMaps[id] = new Module({
 		id:  id,

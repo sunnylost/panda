@@ -32,7 +32,13 @@ var hasOwn   = ObjectProto.hasOwnProperty;
  *  对于绝对路径不做路径处理
  */
 var rabsolutepath = /(^(?:http|https|\/)|\.(?=js$))/g;
+var risrelative   = /^\.{1,2}/;
 var rkeywords = /require|module|exports/;
 var rnocache  = /\?nocache=\d+/;
+
+var guid = 0;
+var ANONYMOUS_MODULE = 'anonymous';
+
+var curBaeUrl;
 
 var CANNOT_FIND_NODE = 'Cannot find current script!';

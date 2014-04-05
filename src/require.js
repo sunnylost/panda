@@ -4,11 +4,27 @@
  * @todo :如果模块不存在，要抛异常吗？
  */
 function require(id, factory) {
+	var m;
+
 	if(!factory) {
-		var m = moduleMaps[require.toUrl.call(this, id) + '.js'];
+		m = moduleMaps[require.toUrl.call(this, id) + '.js'];
 		return m && m.exports;
 	} else {
-		define(isArray(id) ? id : [id], factory);
+		curBaeUrl = this.baseUrl;
+		define(ANONYMOUS_MODULE + guid++, isArray(id) ? id : [id], factory);
+		curBaeUrl = '';
+		/*(isArray(id) ? id : [id]).forEach(function(v, i) {
+			m = moduleMaps[convertIdToPath(v, )];
+		})*/
+/*		m = new Module({
+			id: id,
+			src: id,
+			baseUrl: this.baseUrl,
+			dependencies: isArray(id) ? id : [id],
+			factory: factory
+		})
+
+		m.load();*/
 	}
 }
 
@@ -16,7 +32,7 @@ function require(id, factory) {
  * 根据 id 返回模块绝对路径
  */
 require.toUrl = require.resolve = function(id) {
-	return convertIdToPath(id, this.baseURL);
+	return convertIdToPath(id, this.baseUrl);
 };
 
 /**

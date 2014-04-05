@@ -9,7 +9,7 @@ function resolveDependencies(module) {
 		dms,
 		exports = module.exports;
 
-	dms = dependencyMaps[id];
+	dms = dependencyMaps[id] || dependencyMaps[id = module.uri];
 	if(dms) {
 		dms.forEach(function(m, i) {
 			d = m.dependencies;

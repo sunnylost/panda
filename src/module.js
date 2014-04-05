@@ -59,8 +59,6 @@ Module.prototype = {
 		var isresolved   = module.isresolved;
 		var hasDept      = false; //不仅仅是依赖 require，module，exports
 
-		var path;
-
 		if(!isresolved) {
 			dependencies.forEach(function(id, i) {
 				if(rkeywords.test(id)) {
@@ -86,8 +84,7 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				id = convertIdToPath(id, baseUrl) + '.js';
-				m = moduleMaps[id];  //将 id 替换为绝对路径
+				m = moduleMaps[id] || (moduleMaps[id = convertIdToPath(id, baseUrl) + '.js'])
 				/**
 				 * 依赖采用新的结构
 				 * 		id: 依赖模块 id
@@ -147,14 +144,20 @@ Module.prototype = {
 	resolve: function() {
 		var result;
 		var defaultArgs  = [ require.proxy(this), this.exports, this];
-		var dependencies = this.dependencies || [];
+		var dependencies = this.dependencies;
 		var factory      = this.factory;
 		var argLength    = factory.length;
+
+		if(!dependencies) {
+			dependencies = [];
+			argLength = 3;
+		} else if(dependencies.length == 0) {
+			argLength = 0;
+		}
 
 		dependencies.forEach(function(v, i) {
 			dependencies[i] = v.value;
 		})
-
 		if(argLength > dependencies.length) {
 			dependencies = defaultArgs.concat(dependencies);
 		}
@@ -174,6 +177,8 @@ Module.prototype = {
 		if(!!result) {
 			this.exports = result;
 		}
+
+		moduleMaps[this.id] = this.exports;
 
 		/**
 		 * 模块已经没有依赖，解决其他依赖该模块的模块

@@ -41,28 +41,25 @@ function define(id, dependencies, factory) {
 		}
 	}
 
-	baseUrl = panda.configInfo.baseUrl;
+	baseUrl = curBaeUrl || panda.configInfo.baseUrl;
 	if(!baseUrl) {
 		node = getCurrentScript();
-		if(!node) {
-			throw Error(CANNOT_FIND_NODE)
+		if(node) {
+			src = node.src.replace(rnocache, '');
+			baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
+			if(!id) {
+				id = src;
+			}
 		}
-		src = node.src.replace(rnocache, '');
-		baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
-		id = src;
-	} else {
-		src = id = convertIdToPath(id, baseUrl);
 	}
 
+	if(!id) {
+		id = ANONYMOUS_MODULE + guid++;
+	}
 
-	console.log('ID = ' + id);
-
-	//dependencies = (dependencies ? dependencies : []).concat(parseRequireParam(factory ? factory.toString() : ''));
-	/*cmdRequire = parseRequireParam(factory ? factory.toString() : '');
-
-	cmdRequire.length && setTimeout(function() {
-		define(cmdRequire, function() {});
-	}, 0);*/
+	if(risrelative.test(id)) {
+		id = convertIdToPath(id);
+	}
 
 	(moduleMaps[id] = new Module({
 		id:  id,
