@@ -4,16 +4,49 @@ function Module(option) {
 	this.baseUrl = option.baseUrl;
 	this.factory = option.factory;
 	this.exports = {};
-	this.dependencyLength = option.dependencyLength;
 	var dep = this.dependencies = option.dependencies;
 	/**
 	 * 模块没有依赖，那么视为*已解决*
 	 */
 	(this.isresolved = !dep || !dep.length) && this.resolve();
+
+	/**
+	 * 还有多少依赖未解决
+	 */
+	this.remain = this.isresolved ? 0 : dep.length;
 }
 
 Module.prototype = {
 	constructor: Module,
+
+	/**
+	 * @todo :是否存在循环依赖
+	 */
+	hasCircularReference: function(id) {
+		var hasCircle = false;
+		var hasDep    = false;
+		var _id = this.id;
+
+		var o = dependencyMaps[_id];
+		if(o) {
+			o.forEach(function(m) {
+				m.id == id && (hasDep = true);
+			})
+		}
+		o = dependencyMaps[id];
+		if(o && hasDep) {
+			o.some(function(m) {
+				if(m.id == _id) {
+					//console.log("Dependency Circle!");
+					//console.log("A = " + a);
+					//console.log("B = " + b);
+					return hasCircle = true;
+				}
+			})
+		}
+
+		return hasCircle;
+	},
 
 	/**
 	 * 加载模块
@@ -31,12 +64,17 @@ Module.prototype = {
 		if(!isresolved) {
 			dependencies.forEach(function(id, i) {
 				if(rkeywords.test(id)) {
+					module.remain--;
+					var d = dependencies[i] = {
+						id: id,
+						isresolved: true
+					};
 					if(id == 'require') {
-						dependencies[i] = require.proxy(module);
+						d.value = require.proxy(module);
 					} else if(id == 'module') {
-						dependencies[i] = module;
+						d.value = module;
 					} else if(id == 'exports') {
-						dependencies[i] = module.exports;
+						d.value = module.exports;
 					}
 					return;
 				}
@@ -48,8 +86,19 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				path = convertIdToPath(id, baseUrl) + '.js';
+				id = convertIdToPath(id, baseUrl) + '.js';
 				m = moduleMaps[id];  //将 id 替换为绝对路径
+				/**
+				 * 依赖采用新的结构
+				 * 		id: 依赖模块 id
+				 * 		isresolved: 依赖是否被解决
+				 * 		value: 依赖的值
+				 */
+				dependencies[i] = {
+					id: id,
+					isresolved: false,
+					value: m
+				};
 
 				/**
 				 * module 依赖于 m
@@ -72,7 +121,7 @@ Module.prototype = {
 					 *
 					 * 这样处理草率吗？还有更好的办法吗？
 					 */
-					if(hasDependencyCircle(id, module.id)) {
+					if(module.hasCircularReference(id)) {
 						dependencies[i] = moduleMaps[id] || {};
 						deps.pop();
 
@@ -83,7 +132,7 @@ Module.prototype = {
 						return;
 					}
 				} else {
-					loadJs(path);
+					loadJs(id);
 				}
 			})
 
@@ -101,6 +150,10 @@ Module.prototype = {
 		var dependencies = this.dependencies || [];
 		var factory      = this.factory;
 		var argLength    = factory.length;
+
+		dependencies.forEach(function(v, i) {
+			dependencies[i] = v.value;
+		})
 
 		if(argLength > dependencies.length) {
 			dependencies = defaultArgs.concat(dependencies);

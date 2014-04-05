@@ -1,30 +1,3 @@
-/**
- * @todo :是否存在循环依赖
- */
-function hasDependencyCircle(a, b) {
-	var hasCircle = false;
-	var hasDep    = false;
-
-	var o = dependencyMaps[a];
-	if(o) {
-		o.forEach(function(m) {
-			m.id == b && (hasDep = true);
-		})
-	}
-	o = dependencyMaps[b];
-	if(o && hasDep) {
-		o.some(function(m) {
-			if(m.id == a) {
-				console.log("Dependency Circle!");
-				console.log("A = " + a);
-				console.log("B = " + b);
-				return hasCircle = true;
-			}
-		})
-	}
-
-	return hasCircle;
-}
 
 /**
  * @TODO
@@ -40,25 +13,23 @@ function resolveDependencies(module) {
 	if(dms) {
 		dms.forEach(function(m, i) {
 			d = m.dependencies;
-			d.every(function(depId, i) {
-				if(depId == id) {
-					d[i] = exports;
-
-				/**
-				 * @TODO
-				 * 这里处理的草率了
-				 * 模块也可能返回字符串
-				 */
-				} else if(typeof depId == 'string') {
-					return m.isresolved = false;
+			d.forEach(function(dep) {
+				if(!dep.isresolved && dep.id == id) {
+					dep.isresolved = true;
+					dep.value = exports;
+					m.remain--;
 				}
-				return m.isresolved = true;
 			})
+
+			if(id == 'http://localhost:4000/panda/basic_require/c.js' && moduleMaps['http://localhost:4000/panda/basic_require/_test.js'].dependencies[1] === id) {
+				debugger;
+			}
 			dms.splice(i, 1);
 			if(!dms.length) {
 				delete dependencyMaps[id];
 			}
-			if(m.isresolved) {
+			if(!m.remain) {
+				m.isresolved = true;
 				m.resolve();
 				/**
 				 * m 的依赖已经解决，然后解决依赖于 m 的模块
