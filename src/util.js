@@ -11,7 +11,14 @@ function toArray(obj) {
  * 将 id 解析为绝对路径
  */
 function convertIdToPath(id, baseUrl) {
-	if(!id) return '';  //会有 id 不存在的情况吗？
+	var node;
+	if(!id) {
+		node = getCurrentScript();
+		if(!node) {
+			throw new Error(CANNOT_FIND_NODE);
+		}
+		return node.src.replace(rnocache, '');
+	}
 	if(rabsolutepath.test(id)) return id; //绝对路径不做处理
 	var pieces     = id.split('/');
 	var len    	   = pieces.length;
@@ -39,9 +46,8 @@ function loadJs(path) {
 	script.onload = function() {
 		script.onload = null;
 		script.parentNode.removeChild(script);
-
-		console.log('moduleMaps ', moduleMaps);
-		console.log('dependencyMaps ', dependencyMaps);
+		//console.log('moduleMaps ', moduleMaps);
+		//console.log('dependencyMaps ', dependencyMaps);
 	};
 	script.src = path + '?nocache=' + (+new Date());
 	document.head.appendChild(script);

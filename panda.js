@@ -39,6 +39,8 @@ var rabsolutepath = /(^(?:http|https|\/)|\.(?=js$))/g;
 var rkeywords = /require|module|exports/;
 var rnocache  = /\?nocache=\d+/;
 
+var CANNOT_FIND_NODE = 'Cannot find current script!';
+
 
 function isArray(obj) {
 	return toString.call(obj) === '[object Array]';
@@ -52,7 +54,14 @@ function toArray(obj) {
  * 将 id 解析为绝对路径
  */
 function convertIdToPath(id, baseUrl) {
-	if(!id) return '';  //会有 id 不存在的情况吗？
+	var node;
+	if(!id) {
+		node = getCurrentScript();
+		if(!node) {
+			throw new Error(CANNOT_FIND_NODE);
+		}
+		return node.src.replace(rnocache, '');
+	}
 	if(rabsolutepath.test(id)) return id; //绝对路径不做处理
 	var pieces     = id.split('/');
 	var len    	   = pieces.length;
@@ -80,9 +89,8 @@ function loadJs(path) {
 	script.onload = function() {
 		script.onload = null;
 		script.parentNode.removeChild(script);
-
-		console.log('moduleMaps ', moduleMaps);
-		console.log('dependencyMaps ', dependencyMaps);
+		//console.log('moduleMaps ', moduleMaps);
+		//console.log('dependencyMaps ', dependencyMaps);
 	};
 	script.src = path + '?nocache=' + (+new Date());
 	document.head.appendChild(script);
@@ -144,35 +152,9 @@ panda.config = function(config) {
 };
 
 panda.configInfo = {
+
 	paths: {}
 };
-/**
- * @todo :是否存在循环依赖
- */
-function hasDependencyCircle(a, b) {
-	var hasCircle = false;
-	var hasDep    = false;
-
-	var o = dependencyMaps[a];
-	if(o) {
-		o.forEach(function(m) {
-			m.id == b && (hasDep = true);
-		})
-	}
-	o = dependencyMaps[b];
-	if(o && hasDep) {
-		o.some(function(m) {
-			if(m.id == a) {
-				console.log("Dependency Circle!");
-				console.log("A = " + a);
-				console.log("B = " + b);
-				return hasCircle = true;
-			}
-		})
-	}
-
-	return hasCircle;
-}
 
 /**
  * @TODO
@@ -188,25 +170,23 @@ function resolveDependencies(module) {
 	if(dms) {
 		dms.forEach(function(m, i) {
 			d = m.dependencies;
-			d.every(function(depId, i) {
-				if(depId == id) {
-					d[i] = exports;
-
-				/**
-				 * @TODO
-				 * 这里处理的草率了
-				 * 模块也可能返回字符串
-				 */
-				} else if(typeof depId == 'string') {
-					return m.isresolved = false;
+			d.forEach(function(dep) {
+				if(!dep.isresolved && dep.id == id) {
+					dep.isresolved = true;
+					dep.value = exports;
+					m.remain--;
 				}
-				return m.isresolved = true;
 			})
+
+			if(id == 'http://localhost:4000/panda/basic_require/c.js' && moduleMaps['http://localhost:4000/panda/basic_require/_test.js'].dependencies[1] === id) {
+				debugger;
+			}
 			dms.splice(i, 1);
 			if(!dms.length) {
 				delete dependencyMaps[id];
 			}
-			if(m.isresolved) {
+			if(!m.remain) {
+				m.isresolved = true;
 				m.resolve();
 				/**
 				 * m 的依赖已经解决，然后解决依赖于 m 的模块
@@ -223,13 +203,10 @@ function resolveDependencies(module) {
  */
 function require(id, factory) {
 	if(!factory) {
-		var m = moduleMaps[id];
+		var m = moduleMaps[require.toUrl.call(this, id) + '.js'];
 		return m && m.exports;
 	} else {
-		this.dependencies = isArray(id) ? id : [id];
-		this.factory = factory;
-		this.isresolved = false;
-		this.load();
+		define(isArray(id) ? id : [id], factory);
 	}
 }
 
@@ -256,16 +233,49 @@ function Module(option) {
 	this.baseUrl = option.baseUrl;
 	this.factory = option.factory;
 	this.exports = {};
-	this.dependencyLength = option.dependencyLength;
 	var dep = this.dependencies = option.dependencies;
 	/**
 	 * 模块没有依赖，那么视为*已解决*
 	 */
 	(this.isresolved = !dep || !dep.length) && this.resolve();
+
+	/**
+	 * 还有多少依赖未解决
+	 */
+	this.remain = this.isresolved ? 0 : dep.length;
 }
 
 Module.prototype = {
 	constructor: Module,
+
+	/**
+	 * @todo :是否存在循环依赖
+	 */
+	hasCircularReference: function(id) {
+		var hasCircle = false;
+		var hasDep    = false;
+		var _id = this.id;
+
+		var o = dependencyMaps[_id];
+		if(o) {
+			o.forEach(function(m) {
+				m.id == id && (hasDep = true);
+			})
+		}
+		o = dependencyMaps[id];
+		if(o && hasDep) {
+			o.some(function(m) {
+				if(m.id == _id) {
+					//console.log("Dependency Circle!");
+					//console.log("A = " + a);
+					//console.log("B = " + b);
+					return hasCircle = true;
+				}
+			})
+		}
+
+		return hasCircle;
+	},
 
 	/**
 	 * 加载模块
@@ -283,12 +293,17 @@ Module.prototype = {
 		if(!isresolved) {
 			dependencies.forEach(function(id, i) {
 				if(rkeywords.test(id)) {
+					module.remain--;
+					var d = dependencies[i] = {
+						id: id,
+						isresolved: true
+					};
 					if(id == 'require') {
-						dependencies[i] = require.proxy(module);
+						d.value = require.proxy(module);
 					} else if(id == 'module') {
-						dependencies[i] = module;
+						d.value = module;
 					} else if(id == 'exports') {
-						dependencies[i] = module.exports;
+						d.value = module.exports;
 					}
 					return;
 				}
@@ -300,8 +315,19 @@ Module.prototype = {
 				/**
 				 * @todo: path 重复肿么办？
 				 */
-				path = convertIdToPath(id, baseUrl) + '.js';
+				id = convertIdToPath(id, baseUrl) + '.js';
 				m = moduleMaps[id];  //将 id 替换为绝对路径
+				/**
+				 * 依赖采用新的结构
+				 * 		id: 依赖模块 id
+				 * 		isresolved: 依赖是否被解决
+				 * 		value: 依赖的值
+				 */
+				dependencies[i] = {
+					id: id,
+					isresolved: false,
+					value: m
+				};
 
 				/**
 				 * module 依赖于 m
@@ -324,7 +350,7 @@ Module.prototype = {
 					 *
 					 * 这样处理草率吗？还有更好的办法吗？
 					 */
-					if(hasDependencyCircle(id, module.id)) {
+					if(module.hasCircularReference(id)) {
 						dependencies[i] = moduleMaps[id] || {};
 						deps.pop();
 
@@ -335,7 +361,7 @@ Module.prototype = {
 						return;
 					}
 				} else {
-					loadJs(path);
+					loadJs(id);
 				}
 			})
 
@@ -353,6 +379,10 @@ Module.prototype = {
 		var dependencies = this.dependencies || [];
 		var factory      = this.factory;
 		var argLength    = factory.length;
+
+		dependencies.forEach(function(v, i) {
+			dependencies[i] = v.value;
+		})
 
 		if(argLength > dependencies.length) {
 			dependencies = defaultArgs.concat(dependencies);
@@ -382,10 +412,21 @@ Module.prototype = {
 };
 /**
  *
- * @param  {[String]}    id
- * @param  {[Array]}     dependencies
- * @param  {[Function]}  factory
- * @return {[type]}
+ * id:
+ * 	The first argument, id, is a string literal. It specifies the id of the module being defined. This
+ * 	argument is optional, and if it is not present, the module id should default to the id of the module
+ * 	that the loader was requesting for the given response script. When present, the module id MUST be a
+ * 	"top-level" or absolute id (relative ids are not allowed).
+ *
+ * id's format:
+ * 	A module identifier is a String of "terms" delimited by forward slashes.
+ * 	A term must be a camelCase identifier, ".", or "..".
+ * 	Module identifiers may not have file-name extensions like ".js".
+ * 	Module identifiers may be "relative" or "top-level". A module identifier is "relative" if the first term is "." or "..".
+ * 	Top-level identifiers are resolved off the conceptual module name space root.
+ * 	Relative identifiers are resolved relative to the identifier of the module in which "require" is written and called.
+ * 	The CommonJS module id properties quoted above are normally used for JavaScript modules.
+ *
  */
 function define(id, dependencies, factory) {
 	var argLen = arguments.length;
@@ -412,14 +453,22 @@ function define(id, dependencies, factory) {
 		}
 	}
 
-	node = getCurrentScript();
-	if(!node) {
-		throw Error('Cannot find current script!')
+	baseUrl = panda.configInfo.baseUrl;
+	if(!baseUrl) {
+		node = getCurrentScript();
+		if(!node) {
+			throw Error(CANNOT_FIND_NODE)
+		}
+		src = node.src.replace(rnocache, '');
+		baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
+		id = src;
+	} else {
+		src = id = convertIdToPath(id, baseUrl);
 	}
-	src = node.src.replace(rnocache, '');
-	baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
 
-	id || (id = src.substring(lastIndex + 1).replace('.js', ''));
+
+	console.log('ID = ' + id);
+
 	//dependencies = (dependencies ? dependencies : []).concat(parseRequireParam(factory ? factory.toString() : ''));
 	/*cmdRequire = parseRequireParam(factory ? factory.toString() : '');
 
@@ -446,4 +495,10 @@ function define(id, dependencies, factory) {
 	 */
 	this.define = define;
 	this.panda  = panda;
+
+	/**
+	 * 方便测试
+	 */
+	panda.dependencyMaps = dependencyMaps;
+	panda.moduleMaps = moduleMaps;
 }.call(this))

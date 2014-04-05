@@ -1,9 +1,20 @@
 /**
  *
- * @param  {[String]}    id
- * @param  {[Array]}     dependencies
- * @param  {[Function]}  factory
- * @return {[type]}
+ * id:
+ * 	The first argument, id, is a string literal. It specifies the id of the module being defined. This
+ * 	argument is optional, and if it is not present, the module id should default to the id of the module
+ * 	that the loader was requesting for the given response script. When present, the module id MUST be a
+ * 	"top-level" or absolute id (relative ids are not allowed).
+ *
+ * id's format:
+ * 	A module identifier is a String of "terms" delimited by forward slashes.
+ * 	A term must be a camelCase identifier, ".", or "..".
+ * 	Module identifiers may not have file-name extensions like ".js".
+ * 	Module identifiers may be "relative" or "top-level". A module identifier is "relative" if the first term is "." or "..".
+ * 	Top-level identifiers are resolved off the conceptual module name space root.
+ * 	Relative identifiers are resolved relative to the identifier of the module in which "require" is written and called.
+ * 	The CommonJS module id properties quoted above are normally used for JavaScript modules.
+ *
  */
 function define(id, dependencies, factory) {
 	var argLen = arguments.length;
@@ -30,14 +41,22 @@ function define(id, dependencies, factory) {
 		}
 	}
 
-	node = getCurrentScript();
-	if(!node) {
-		throw Error('Cannot find current script!')
+	baseUrl = panda.configInfo.baseUrl;
+	if(!baseUrl) {
+		node = getCurrentScript();
+		if(!node) {
+			throw Error(CANNOT_FIND_NODE)
+		}
+		src = node.src.replace(rnocache, '');
+		baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
+		id = src;
+	} else {
+		src = id = convertIdToPath(id, baseUrl);
 	}
-	src = node.src.replace(rnocache, '');
-	baseUrl = src.substring(0, (lastIndex = src.lastIndexOf('/')) + 1);
 
-	id || (id = src.substring(lastIndex + 1).replace('.js', ''));
+
+	console.log('ID = ' + id);
+
 	//dependencies = (dependencies ? dependencies : []).concat(parseRequireParam(factory ? factory.toString() : ''));
 	/*cmdRequire = parseRequireParam(factory ? factory.toString() : '');
 

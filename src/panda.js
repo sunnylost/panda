@@ -16,5 +16,6 @@ panda.config = function(config) {
 };
 
 panda.configInfo = {
+
 	paths: {}
 };

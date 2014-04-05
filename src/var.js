@@ -34,3 +34,5 @@ var hasOwn   = ObjectProto.hasOwnProperty;
 var rabsolutepath = /(^(?:http|https|\/)|\.(?=js$))/g;
 var rkeywords = /require|module|exports/;
 var rnocache  = /\?nocache=\d+/;
+
+var CANNOT_FIND_NODE = 'Cannot find current script!';

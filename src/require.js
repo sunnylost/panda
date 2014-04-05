@@ -5,13 +5,10 @@
  */
 function require(id, factory) {
 	if(!factory) {
-		var m = moduleMaps[id];
+		var m = moduleMaps[require.toUrl.call(this, id) + '.js'];
 		return m && m.exports;
 	} else {
-		this.dependencies = isArray(id) ? id : [id];
-		this.factory = factory;
-		this.isresolved = false;
-		this.load();
+		define(isArray(id) ? id : [id], factory);
 	}
 }
 
